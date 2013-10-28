@@ -20,8 +20,30 @@ curl -b ${COOKIEJAR} -c ${COOKIEJAR} -A "${UA}" -o /dev/null \
      -d t=${T} -d pw="${PW}" -d h="" -d av=0 \
      "https://cmd.shutterfly.com/commands/sites/password?site=${SITE}&"
 
-# retrieve JS containing page content
+# page just does this:
+# if (window.Shr && Shr.Page) { 
+#        Shr.Page.render();
+# so, retrieve JS containing page content
 
 curl -b ${COOKIEJAR} -c ${COOKIEJAR} -A "${UA}" -o "${SITE}.js" \
-     "https://cmd.shutterfly.com/commands/format/js?site=${SITE}&page=${SITE}"
+     "https://cmd.shutterfly.com/commands/format/js?site=${SITE}&page=${SITE}&v=1"
 
+#extract Shr.P JSON blob containing site data
+$(npm bin)/js-beautify "${SITE}.js" > "${SITE}-pp.js";
+rm "${SITE}.js";
+
+PG_DATA_START=$(grep -n "^Shr\.P " "${SITE}-pp.js" | cut -d : -f 1);
+PG_DATA_END=$(grep -n "^Shr\." "${SITE}-pp.js" | grep -A 1 "^[0-9]*:Shr\.P " | tail -n 1 | cut -d : -f 1);
+
+head -n $((PG_DATA_END - 1)) "${SITE}-pp.js" | tail -n +${PG_DATA_START} > "${SITE}-data.js";
+
+#construct a bit of JS that will deal with the Shr.P JSON blob and
+#dump out the "recent posts" section in a readable way
+
+echo "Shr = {};" > "${SITE}-dump.js";
+cat "${SITE}-data.js" >> "${SITE}-dump.js";
+cat >> "${SITE}-dump.js" <<EOF
+console.log(Shr.P.pageId);
+EOF
+
+node "${SITE}-dump.js";
