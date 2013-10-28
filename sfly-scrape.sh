@@ -11,12 +11,12 @@ rm ${COOKIEJAR};
 
 # get site JS blob, containing initial "visitor" cookie:
 
-curl -c ${COOKIEJAR} -A "${UA}" -o /dev/null \
+curl -s -c ${COOKIEJAR} -A "${UA}" -o /dev/null \
      "https://cmd.shutterfly.com/commands/format/js?site=${SITE}&page=${SITE}&v=1"
 
 # login to get sflySID cookie
 
-curl -b ${COOKIEJAR} -c ${COOKIEJAR} -A "${UA}" -o /dev/null \
+curl -s -b ${COOKIEJAR} -c ${COOKIEJAR} -A "${UA}" -o /dev/null \
      -d t=${T} -d pw="${PW}" -d h="" -d av=0 \
      "https://cmd.shutterfly.com/commands/sites/password?site=${SITE}&"
 
@@ -25,7 +25,7 @@ curl -b ${COOKIEJAR} -c ${COOKIEJAR} -A "${UA}" -o /dev/null \
 #        Shr.Page.render();
 # so, retrieve JS containing page content
 
-curl -b ${COOKIEJAR} -c ${COOKIEJAR} -A "${UA}" -o "${SITE}.js" \
+curl -s -b ${COOKIEJAR} -c ${COOKIEJAR} -A "${UA}" -o "${SITE}.js" \
      "https://cmd.shutterfly.com/commands/format/js?site=${SITE}&page=${SITE}&v=1"
 
 #extract Shr.P JSON blob containing site data
@@ -43,7 +43,22 @@ head -n $((PG_DATA_END - 1)) "${SITE}-pp.js" | tail -n +${PG_DATA_START} > "${SI
 echo "Shr = {};" > "${SITE}-dump.js";
 cat "${SITE}-data.js" >> "${SITE}-dump.js";
 cat >> "${SITE}-dump.js" <<EOF
-console.log(Shr.P.pageId);
+dumpEntry = function(ent, iEnt){
+  var url = "https://${SITE}.shutterfly.com/" + ent.pageId.replace("${SITE}","") + "/" + ent.content.nodeId;
+  console.log("<hr/><h3><a href=\"" + url + "\">" + ent.content.title + "</a></h3>");
+  if(ent.content.summary){
+    console.log("<p>" + ent.content.summary + "</p>");
+  }
+};
+
+for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
+    if(Shr.P.sections[iSect].mid === "ActivityFeed"){
+        for(var iEnt=0;iEnt<Shr.P.sections[iSect].entries.length;iEnt++){
+	    dumpEntry(Shr.P.sections[iSect].entries[iEnt], iEnt);
+        }
+    }
+}
 EOF
 
-node "${SITE}-dump.js";
+node "${SITE}-dump.js" > "${SITE}-activity.html";
+mail -s "Recent activity for ${SITE} on Shutterfly" "${3}" < "${SITE}-activity.html";
