@@ -61,4 +61,5 @@ for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
 EOF
 
 node "${SITE}-dump.js" > "${SITE}-activity.html";
-mail -s "Recent activity for ${SITE} on Shutterfly" "${3}" < "${SITE}-activity.html";
+#'email --html' doesn't seem to work :(
+mail -a "Content-Type: text/html" -s "Recent activity for ${SITE} on Shutterfly" "${3}" < "${SITE}-activity.html";
