@@ -8,7 +8,7 @@ UA="Mozilla/5.0 (X11; Linux i686; rv:17.0) Gecko/20100101 Firefox/17.0";
 COOKIEJAR=${SITE}-cookies
 T=$(date +%s);
 
-rm "${COOKIEJAR}";
+rm -f "${COOKIEJAR}";
 
 # get site JS blob, containing initial "visitor" cookie:
 
