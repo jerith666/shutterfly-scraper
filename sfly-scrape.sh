@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 
-SITE="${1}";
-PW="${2}";
+SITE="${1}"; #scrape activity from this site (https://<site>.shutterfly.com)
+PW="${2}"; #with this password
+RECIPIENTS="${3}"; #send to these email addresses (quoted, space separated)
 
 UA="Mozilla/5.0 (X11; Linux i686; rv:17.0) Gecko/20100101 Firefox/17.0";
 COOKIEJAR=${SITE}-cookies
 T=$(date +%s);
 
-rm ${COOKIEJAR};
+rm "${COOKIEJAR}";
 
 # get site JS blob, containing initial "visitor" cookie:
 
-curl -s -c ${COOKIEJAR} -A "${UA}" -o /dev/null \
+curl -s -c "${COOKIEJAR}" -A "${UA}" -o /dev/null \
      "https://cmd.shutterfly.com/commands/format/js?site=${SITE}&page=${SITE}&v=1"
 
 # login to get sflySID cookie
 
-curl -s -b ${COOKIEJAR} -c ${COOKIEJAR} -A "${UA}" -o /dev/null \
+curl -s -b "${COOKIEJAR}" -c "${COOKIEJAR}" -A "${UA}" -o /dev/null \
      -d t=${T} -d pw="${PW}" -d h="" -d av=0 \
      "https://cmd.shutterfly.com/commands/sites/password?site=${SITE}&"
 
@@ -25,8 +26,10 @@ curl -s -b ${COOKIEJAR} -c ${COOKIEJAR} -A "${UA}" -o /dev/null \
 #        Shr.Page.render();
 # so, retrieve JS containing page content
 
-curl -s -b ${COOKIEJAR} -c ${COOKIEJAR} -A "${UA}" -o "${SITE}.js" \
+curl -s -b "${COOKIEJAR}" -c "${COOKIEJAR}" -A "${UA}" -o "${SITE}.js" \
      "https://cmd.shutterfly.com/commands/format/js?site=${SITE}&page=${SITE}&v=1"
+
+rm "${COOKIEJAR}";
 
 #extract Shr.P JSON blob containing site data
 $(npm bin)/js-beautify "${SITE}.js" > "${SITE}-pp.js";
@@ -37,11 +40,16 @@ PG_DATA_END=$(grep -n "^Shr\." "${SITE}-pp.js" | grep -A 1 "^[0-9]*:Shr\.P " | t
 
 head -n $((PG_DATA_END - 1)) "${SITE}-pp.js" | tail -n +${PG_DATA_START} > "${SITE}-data.js";
 
+rm "${SITE}-pp.js";
+
 #construct a bit of JS that will deal with the Shr.P JSON blob and
 #dump out the "recent posts" section in a readable way
 
 echo "Shr = {};" > "${SITE}-dump.js";
+
 cat "${SITE}-data.js" >> "${SITE}-dump.js";
+rm "${SITE}-data.js";
+
 cat >> "${SITE}-dump.js" <<EOF
 dumpEntry = function(ent, iEnt){
   var url = "https://${SITE}.shutterfly.com/" + ent.pageId.replace("${SITE}","") + "/" + ent.content.nodeId;
@@ -61,5 +69,9 @@ for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
 EOF
 
 node "${SITE}-dump.js" > "${SITE}-activity.html";
+rm "${SITE}-dump.js";
+
 #'email --html' doesn't seem to work :(
-mail -a "Content-Type: text/html" -s "Recent activity for ${SITE} on Shutterfly" "${3}" < "${SITE}-activity.html";
+mail -a "Content-Type: text/html" -s "Recent activity for ${SITE} on Shutterfly" "${RECIPIENTS}" < "${SITE}-activity.html";
+
+rm "${SITE}-activity.html";
