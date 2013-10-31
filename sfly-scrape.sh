@@ -71,7 +71,15 @@ EOF
 node "${SITE}-dump.js" > "${SITE}-activity.html";
 rm "${SITE}-dump.js";
 
-#'email --html' doesn't seem to work :(
-mail -a "Content-Type: text/html" -s "Recent activity for ${SITE} on Shutterfly" "${RECIPIENTS}" < "${SITE}-activity.html";
+if diff "${SITE}-activity-last.html" "${SITE}-activity.html" > /dev/null; then
+  true;#stay silent
+else
+  #send new content
 
-rm "${SITE}-activity.html";
+  #'email --html' doesn't seem to work :(
+  mail -a "Content-Type: text/html" \
+       -s "Recent activity for ${SITE} on Shutterfly" \
+       "${RECIPIENTS}" < "${SITE}-activity.html";
+fi;
+
+mv -f "${SITE}-activity.html" "${SITE}-activity-last.html";
