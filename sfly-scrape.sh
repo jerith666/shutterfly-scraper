@@ -53,7 +53,7 @@ rm "${SITE}-data.js";
 cat >> "${SITE}-dump.js" <<EOF
 dumpEntry = function(ent, iEnt){
   var url = "https://${SITE}.shutterfly.com/" + ent.pageId.replace("${SITE}","") + "/" + ent.content.nodeId;
-  console.log("<hr/><h3><a href=\"" + url + "\">" + ent.content.title + "</a></h3>");
+  console.log("<h3><a href=\"" + url + "\">" + ent.content.title + "</a></h3><hr/>");
   if(ent.content.summary){
     console.log("<p>" + ent.content.summary + "</p>");
   }
