@@ -78,6 +78,7 @@ else
 
   #'email --html' doesn't seem to work :(
   mail -a "Content-Type: text/html" \
+       -a "From: ${SITE}@shutterfly.com" \
        -s "Recent activity for ${SITE} on Shutterfly" \
        "${RECIPIENTS}" < "${SITE}-activity.html";
 fi;
