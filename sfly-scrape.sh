@@ -33,14 +33,14 @@ rm "${COOKIEJAR}";
 
 #extract Shr.P JSON blob containing site data
 $(npm bin)/js-beautify "${SITE}.js" > "${SITE}-pp.js";
-rm "${SITE}.js";
+#rm "${SITE}.js";
 
 PG_DATA_START=$(grep -n "^Shr\.P " "${SITE}-pp.js" | cut -d : -f 1);
 PG_DATA_END=$(grep -n "^Shr\." "${SITE}-pp.js" | grep -A 1 "^[0-9]*:Shr\.P " | tail -n 1 | cut -d : -f 1);
 
 head -n $((PG_DATA_END - 1)) "${SITE}-pp.js" | tail -n +${PG_DATA_START} > "${SITE}-data.js";
 
-rm "${SITE}-pp.js";
+#rm "${SITE}-pp.js";
 
 #construct a bit of JS that will deal with the Shr.P JSON blob and
 #dump out the "recent posts" section in a readable way
@@ -48,7 +48,7 @@ rm "${SITE}-pp.js";
 echo "Shr = {};" > "${SITE}-dump.js";
 
 cat "${SITE}-data.js" >> "${SITE}-dump.js";
-rm "${SITE}-data.js";
+#rm "${SITE}-data.js";
 
 cat >> "${SITE}-dump.js" <<EOF
 dumpEntry = function(ent, iEnt){
@@ -69,7 +69,7 @@ for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
 EOF
 
 node "${SITE}-dump.js" > "${SITE}-activity.html";
-rm "${SITE}-dump.js";
+#rm "${SITE}-dump.js";
 
 if diff "${SITE}-activity-last.html" "${SITE}-activity.html" > /dev/null; then
   true;#stay silent
