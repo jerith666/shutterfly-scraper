@@ -52,17 +52,17 @@ rm "${SITE}-data.js";
 
 cat >> "${SITE}-dump.js" <<EOF
 dumpEntry = function(ent, iEnt){
-  var url = "https://${SITE}.shutterfly.com/" + ent.pageId.replace("${SITE}","") + "/" + ent.content.nodeId;
-  console.log("<h3><a href=\"" + url + "\">" + ent.content.title + "</a></h3><hr/>");
-  if(ent.content.summary){
-    console.log("<p>" + ent.content.summary + "</p>");
+  var url = "https://${SITE}.shutterfly.com/" + "/" + ent.nodeId;
+  console.log("<h3><a href=\"" + url + "\">" + ent.title + "</a></h3><hr/>");
+  if(ent.text){
+    console.log("<p>" + ent.text + "</p>");
   }
 };
 
 for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
-    if(Shr.P.sections[iSect].mid === "ActivityFeed"){
-        for(var iEnt=0;iEnt<Shr.P.sections[iSect].entries.length;iEnt++){
-	    dumpEntry(Shr.P.sections[iSect].entries[iEnt], iEnt);
+    if(Shr.P.sections[iSect].mid === "Journal"){
+        for(var iEnt=0;iEnt<Shr.P.sections[iSect].items.length;iEnt++){
+	    dumpEntry(Shr.P.sections[iSect].items[iEnt], iEnt);
         }
     }
 }
