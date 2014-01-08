@@ -33,28 +33,54 @@ getSite() {
   curl -s -b "${COOKIEJAR}" -c "${COOKIEJAR}" -A "${UA}" -o "${ID}.js" \
        "https://cmd.shutterfly.com/commands/format/js?site=${GSITE}&page=${GSITE}${PAGE}&v=1";
 
-  #extract Shr.P JSON blob containing site data
+  #extract Shr.S JSON blob containing site data
+  #and Shr.P JSON blob containing page data
   $(npm bin)/js-beautify "${ID}.js" > "${ID}-pp.js";
   #rm "${ID}.js";
 
-  PG_DATA_START=$(grep -n "^Shr\.P " "${ID}-pp.js" | cut -d : -f 1);
-  PG_DATA_END=$(grep -n "^Shr\." "${ID}-pp.js" | grep -A 1 "^[0-9]*:Shr\.P " | tail -n 1 | cut -d : -f 1);
+  rm -f "${ID}-rawdata.js";
+  for sect in S P; do
+    PG_DATA_START=$(grep -n "^Shr\.${sect} " "${ID}-pp.js" | cut -d : -f 1);
+    PG_DATA_END=$(grep -n "^Shr\." "${ID}-pp.js" | grep -A 1 "^[0-9]*:Shr\.${sect} " | tail -n 1 | cut -d : -f 1);
 
-  head -n $((PG_DATA_END - 1)) "${ID}-pp.js" | tail -n +${PG_DATA_START} > "${ID}-data.js";
+    head -n $((PG_DATA_END - 1)) "${ID}-pp.js" | tail -n +${PG_DATA_START} >> "${ID}-rawdata.js";
+  done;
 
   #rm "${ID}-pp.js";
 
-  #construct a bit of JS that will deal with the Shr.P JSON blob
-  echo "Shr = {};" > "${ID}-dump.js";
+  #construct a bit of JS that will deal with the Shr.S and Shr.P JSON blobs
+  echo "Shr = {};" > "${ID}-data.js";
 
-  cat "${ID}-data.js" >> "${ID}-dump.js";
-  #rm "${ID}-data.js";
+  cat "${ID}-rawdata.js" >> "${ID}-data.js";
 }
 
+#get main site
 getSite "${SITE}" "";
-#getSite "${SITE}" "%2fliteracy";
 
-cat >> "${SITE}-dump.js" <<EOF
+#look for activity feed
+cat "${SITE}-data.js" > "${SITE}-hasaf.js";
+cat >> "${SITE}-hasaf.js" <<EOF
+var foundActivityFeed = false;
+for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
+    if(Shr.P.sections[iSect].mid === "ActivityFeed"){
+        foundActivityFeed = true;
+        break;
+    }
+}
+
+console.log(foundActivityFeed);
+
+EOF
+
+HASAF=$(node ${SITE}-hasaf.js);
+echo "hasaf: $HASAF";
+#rm "${SITE}-hasaf.js";
+
+
+if [ "$HASAF" == "true" ]; then
+  #activity feed found; use it
+  cat "${SITE}-data.js" > "${SITE}-dump.js";
+  cat >> "${SITE}-dump.js" <<EOF
 
 dumpActivityFeedEntry = function(ent, iEnt){
   var url = "https://${SITE}.shutterfly.com/" + ent.pageId.replace("${SITE}","") + "/" + ent.content.nodeId;
@@ -64,6 +90,41 @@ dumpActivityFeedEntry = function(ent, iEnt){
   }
 }
 
+for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
+    if(Shr.P.sections[iSect].mid === "ActivityFeed"){
+        for(var iEnt=0;iEnt<Shr.P.sections[iSect].entries.length;iEnt++){
+           dumpActivityFeedEntry(Shr.P.sections[iSect].entries[iEnt], iEnt);
+        }
+    }
+}
+EOF
+
+else
+  #no activity feed; retrieve list of sub-pages
+  cat "${SITE}-data.js" > "${SITE}-dumppages.js";
+  cat >> "${SITE}-dumppages.js" <<EOF
+var pages = [];
+for(var iPage=0; iPage < Shr.S.pages.length; iPage++){
+    console.log(Shr.S.pages[iPage].name);
+}
+EOF
+
+  PAGES=$(node "${SITE}-dumppages.js");
+
+  #retrieve raw data for all sub-pages
+  cat "${SITE}-data.js" > "${SITE}-dump.js";
+  echo "pages = {};" >> "${SITE}-dump.js";
+  for page in ${PAGES}; do
+    getSite "${SITE}" "%2f${page}";
+    echo "pages.${page} = {}; pages.${page}.Shr = {};" >> "${SITE}-dump.js";
+    sed "s/^Shr\./pages.${page}.Shr./" "${SITE}%2f${page}-data.js" | \
+        sed "s/^Shr = {};$//" >> "${SITE}-dump.js";
+    #rm "${SITE}%2f${page}-data.js";
+  done;
+
+  #retrieve journal data from main page and all sub-pages
+  cat >> "${SITE}-dump.js" <<EOF
+
 dumpJournalEntry = function(ent, iEnt){
   var url = "https://${SITE}.shutterfly.com/" + "/" + ent.nodeId;
   console.log("<h3><a href=\"" + url + "\">" + ent.title + "</a></h3><hr/>");
@@ -72,28 +133,31 @@ dumpJournalEntry = function(ent, iEnt){
   }
 };
 
-var foundActivityFeed = false;
-for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
-    if(Shr.P.sections[iSect].mid === "ActivityFeed"){
-        foundActivityFeed = true;
-        for(var iEnt=0;iEnt<Shr.P.sections[iSect].entries.length;iEnt++){
-           dumpActivityFeedEntry(Shr.P.sections[iSect].entries[iEnt], iEnt);
-        }
+var pagePs = [Shr.P];
+for(page in pages){
+    if(pages.hasOwnProperty(page)){
+        pagePs.push(pages[page].Shr.P);
     }
 }
 
-if(!foundActivityFeed){
-    for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
-        if(Shr.P.sections[iSect].mid === "Journal"){
-            for(var iEnt=0;iEnt<Shr.P.sections[iSect].items.length;iEnt++){
-	        dumpJournalEntry(Shr.P.sections[iSect].items[iEnt], iEnt);
+for(var iPagePs=0; iPagePs < pagePs.length; iPagePs++){
+    var p = pagePs[iPagePs];
+    console.log("<h1>" + p.title + "</h1>");
+
+    for(var iSect=0;iSect<p.sections.length;iSect++){
+        if(p.sections[iSect].mid === "Journal"){
+            for(var iEnt=0;iEnt<p.sections[iSect].items.length;iEnt++){
+                dumpJournalEntry(p.sections[iSect].items[iEnt], iEnt);
             }
         }
     }
 }
 EOF
 
-rm "${COOKIEJAR}";
+fi;
+
+#rm "${ID}-data.js";
+#rm "${COOKIEJAR}";
 
 node "${SITE}-dump.js" > "${SITE}-activity.html";
 #rm "${SITE}-dump.js";
