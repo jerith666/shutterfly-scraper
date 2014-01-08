@@ -16,39 +16,43 @@ curl -s -c "${COOKIEJAR}" -A "${UA}" -o /dev/null \
      "https://cmd.shutterfly.com/commands/format/js?site=${SITE}&page=${SITE}&v=1"
 
 # login to get sflySID cookie
-
 curl -s -b "${COOKIEJAR}" -c "${COOKIEJAR}" -A "${UA}" -o /dev/null \
      -d t=${T} -d pw="${PW}" -d h="" -d av=0 \
      "https://cmd.shutterfly.com/commands/sites/password?site=${SITE}&"
 
-# page just does this:
-# if (window.Shr && Shr.Page) { 
-#        Shr.Page.render();
-# so, retrieve JS containing page content
+getSite() {
+  GSITE=$1;
+  PAGE=$2;
+  ID="${GSITE}${PAGE}";
 
-curl -s -b "${COOKIEJAR}" -c "${COOKIEJAR}" -A "${UA}" -o "${SITE}.js" \
-     "https://cmd.shutterfly.com/commands/format/js?site=${SITE}&page=${SITE}&v=1"
+  # page just does this:
+  # if (window.Shr && Shr.Page) { 
+  #        Shr.Page.render();
+  # so, retrieve JS containing page content
 
-rm "${COOKIEJAR}";
+  curl -s -b "${COOKIEJAR}" -c "${COOKIEJAR}" -A "${UA}" -o "${ID}.js" \
+       "https://cmd.shutterfly.com/commands/format/js?site=${GSITE}&page=${GSITE}${PAGE}&v=1";
 
-#extract Shr.P JSON blob containing site data
-$(npm bin)/js-beautify "${SITE}.js" > "${SITE}-pp.js";
-#rm "${SITE}.js";
+  #extract Shr.P JSON blob containing site data
+  $(npm bin)/js-beautify "${ID}.js" > "${ID}-pp.js";
+  #rm "${ID}.js";
 
-PG_DATA_START=$(grep -n "^Shr\.P " "${SITE}-pp.js" | cut -d : -f 1);
-PG_DATA_END=$(grep -n "^Shr\." "${SITE}-pp.js" | grep -A 1 "^[0-9]*:Shr\.P " | tail -n 1 | cut -d : -f 1);
+  PG_DATA_START=$(grep -n "^Shr\.P " "${ID}-pp.js" | cut -d : -f 1);
+  PG_DATA_END=$(grep -n "^Shr\." "${ID}-pp.js" | grep -A 1 "^[0-9]*:Shr\.P " | tail -n 1 | cut -d : -f 1);
 
-head -n $((PG_DATA_END - 1)) "${SITE}-pp.js" | tail -n +${PG_DATA_START} > "${SITE}-data.js";
+  head -n $((PG_DATA_END - 1)) "${ID}-pp.js" | tail -n +${PG_DATA_START} > "${ID}-data.js";
 
-#rm "${SITE}-pp.js";
+  #rm "${ID}-pp.js";
 
-#construct a bit of JS that will deal with the Shr.P JSON blob and
-#dump out the "recent posts" section in a readable way
+  #construct a bit of JS that will deal with the Shr.P JSON blob
+  echo "Shr = {};" > "${ID}-dump.js";
 
-echo "Shr = {};" > "${SITE}-dump.js";
+  cat "${ID}-data.js" >> "${ID}-dump.js";
+  #rm "${ID}-data.js";
+}
 
-cat "${SITE}-data.js" >> "${SITE}-dump.js";
-#rm "${SITE}-data.js";
+getSite "${SITE}" "";
+#getSite "${SITE}" "%2fliteracy";
 
 cat >> "${SITE}-dump.js" <<EOF
 
@@ -88,6 +92,8 @@ if(!foundActivityFeed){
     }
 }
 EOF
+
+rm "${COOKIEJAR}";
 
 node "${SITE}-dump.js" > "${SITE}-activity.html";
 #rm "${SITE}-dump.js";
