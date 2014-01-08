@@ -51,7 +51,16 @@ cat "${SITE}-data.js" >> "${SITE}-dump.js";
 #rm "${SITE}-data.js";
 
 cat >> "${SITE}-dump.js" <<EOF
-dumpEntry = function(ent, iEnt){
+
+dumpActivityFeedEntry = function(ent, iEnt){
+  var url = "https://${SITE}.shutterfly.com/" + ent.pageId.replace("${SITE}","") + "/" + ent.content.nodeId;
+  console.log("<h3><a href=\"" + url + "\">" + ent.content.title + "</a></h3><hr/>");
+  if(ent.content.summary){
+    console.log("<p>" + ent.content.summary + "</p>");
+  }
+}
+
+dumpJournalEntry = function(ent, iEnt){
   var url = "https://${SITE}.shutterfly.com/" + "/" + ent.nodeId;
   console.log("<h3><a href=\"" + url + "\">" + ent.title + "</a></h3><hr/>");
   if(ent.text){
@@ -59,10 +68,22 @@ dumpEntry = function(ent, iEnt){
   }
 };
 
+var foundActivityFeed = false;
 for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
-    if(Shr.P.sections[iSect].mid === "Journal"){
-        for(var iEnt=0;iEnt<Shr.P.sections[iSect].items.length;iEnt++){
-	    dumpEntry(Shr.P.sections[iSect].items[iEnt], iEnt);
+    if(Shr.P.sections[iSect].mid === "ActivityFeed"){
+        foundActivityFeed = true;
+        for(var iEnt=0;iEnt<Shr.P.sections[iSect].entries.length;iEnt++){
+           dumpActivityFeedEntry(Shr.P.sections[iSect].entries[iEnt], iEnt);
+        }
+    }
+}
+
+if(!foundActivityFeed){
+    for(var iSect=0;iSect<Shr.P.sections.length;iSect++){
+        if(Shr.P.sections[iSect].mid === "Journal"){
+            for(var iEnt=0;iEnt<Shr.P.sections[iSect].items.length;iEnt++){
+	        dumpJournalEntry(Shr.P.sections[iSect].items[iEnt], iEnt);
+            }
         }
     }
 }

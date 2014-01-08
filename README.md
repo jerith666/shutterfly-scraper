@@ -1,6 +1,4 @@
-This is a simple script to scrape and email the "recent activity" section of a Shutterfly site.
-
-If the site you want to scrape has a "News & Updates" section rather than a "Recent Activity" section, try the `journal` branch instead of `master`.
+This is a simple script to scrape and email the "recent activity" (or "news & updates" if "recent activity" doesn't exist) section of a Shutterfly site.
 
 It requires `curl`, Node.js (`node` and `npm`), `js-beautify` (via `npm install js-beautify`), and `mail`.
 
