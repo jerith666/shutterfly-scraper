@@ -127,9 +127,17 @@ EOF
   cat >> "${SITE}-dump.js" <<EOF
 
 dumpJournalEntry = function(ent, iEnt){
+  var oneDayAgo = new Date();
+  oneDayAgo.setFullYear(oneDayAgo.getFullYear(),
+                        oneDayAgo.getMonth(),
+                        oneDayAgo.getDate() - 1);
+  var entryDate = new Date(ent.publishDateUtc * 1000);
   var url = "https://${SITE}.shutterfly.com/" + "/" + ent.nodeId;
   console.log("<h3><a href=\"" + url + "\">" + ent.title + "</a></h3><hr/>");
-  if(ent.text){
+  if(entryDate <= oneDayAgo){
+    console.log("<p>text of entry older than one day omitted</p>");
+  }
+  else if(ent.text){
     console.log("<p>" + ent.text + "</p>");
   }
 };
