@@ -36,7 +36,7 @@ getSite() {
   #extract Shr.S JSON blob containing site data
   #and Shr.P JSON blob containing page data
   $(npm bin)/js-beautify "${ID}.js" > "${ID}-pp.js";
-  rm "${ID}.js";
+  #rm "${ID}.js";
 
   rm -f "${ID}-rawdata.js";
   for sect in S P; do
@@ -46,13 +46,13 @@ getSite() {
     head -n $((PG_DATA_END - 1)) "${ID}-pp.js" | tail -n +${PG_DATA_START} >> "${ID}-rawdata.js";
   done;
 
-  rm "${ID}-pp.js";
+  #rm "${ID}-pp.js";
 
   #construct a bit of JS that will deal with the Shr.S and Shr.P JSON blobs
   echo "Shr = {};" > "${ID}-data.js";
 
   cat "${ID}-rawdata.js" >> "${ID}-data.js";
-  rm "${ID}-rawdata.js";
+  #rm "${ID}-rawdata.js";
 }
 
 #get main site
@@ -74,7 +74,7 @@ console.log(foundActivityFeed);
 EOF
 
 HASAF=$(node ${SITE}-hasaf.js);
-rm "${SITE}-hasaf.js";
+#rm "${SITE}-hasaf.js";
 
 
 if [ "$HASAF" == "true" ]; then
@@ -110,7 +110,7 @@ for(var iPage=0; iPage < Shr.S.pages.length; iPage++){
 EOF
 
   PAGES=$(node "${SITE}-dumppages.js");
-  rm "${SITE}-dumppages.js";
+  #rm "${SITE}-dumppages.js";
 
   #retrieve raw data for all sub-pages
   cat "${SITE}-data.js" > "${SITE}-dump.js";
@@ -120,7 +120,7 @@ EOF
     echo "pages.${page} = {}; pages.${page}.Shr = {};" >> "${SITE}-dump.js";
     sed "s/^Shr\./pages.${page}.Shr./" "${SITE}%2f${page}-data.js" | \
         sed "s/^Shr = {};$//" >> "${SITE}-dump.js";
-    rm "${SITE}%2f${page}-data.js";
+    #rm "${SITE}%2f${page}-data.js";
   done;
 
   #retrieve journal data from main page and all sub-pages
@@ -165,13 +165,13 @@ EOF
 
 fi;
 
-rm "${COOKIEJAR}";
-rm "${SITE}-data.js";
+#rm "${ID}-data.js";
+#rm "${COOKIEJAR}";
 
 
 #finally, run the generated script to dump the activity
 node "${SITE}-dump.js" > "${SITE}-activity.html";
-rm "${SITE}-dump.js";
+#rm "${SITE}-dump.js";
 
 if diff "${SITE}-activity-last.html" "${SITE}-activity.html" > /dev/null; then
   true;#stay silent
